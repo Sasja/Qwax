@@ -77,7 +77,7 @@ public class MyService extends Service {
                 cr,
                 projection,
                 now,
-                now + 1000 * 60 * 60 * 12); // looking 12 hours ahead for events
+                now + 1000 * 60 * 60 * 12); // looking 12 hours ahead for events.
         String nextEventTitle = null;
         String currentEventTitle = null;
         long nextStartTime = Long.MAX_VALUE;
