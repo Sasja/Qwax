@@ -3,6 +3,6 @@
     <CheckBoxPreference
         android:key="enabled"
         android:title="@string/pref_enabled"
-        android:defaultValue="true"
+        android:defaultValue="false"
         />
 </PreferenceScreen>
