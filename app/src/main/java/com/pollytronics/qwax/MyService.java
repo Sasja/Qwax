@@ -4,8 +4,11 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.os.Handler;
 import android.os.IBinder;
@@ -18,9 +21,13 @@ public class MyService extends Service {
 
     private static int cnt = 0;
     private Handler handler;
-    private ToasterLoop toasterLoop;
+    private UpdateLoop updateLoop;
     private static final int NOTIFICATION_ID = 1;
     private Notification.Builder notificationBuilder;
+
+//    private CalendarReceiver calendarReceiver;
+    private ScreenOnReceiver screenOnReceiver;
+    private ScreenOffReceiver screenOffReceiver;
 
     public MyService() {
     }
@@ -28,9 +35,8 @@ public class MyService extends Service {
     @Override
     public void onCreate() {
         Log.i(TAG, "onCreate()");
-        toasterLoop = new ToasterLoop();
+        updateLoop = new UpdateLoop();
         handler = new Handler();
-        handler.post(toasterLoop);
         super.onCreate();
     }
 
@@ -43,15 +49,39 @@ public class MyService extends Service {
                 .setContentText("reading calendar...")
                 .setContentIntent(pendingIntent)
                 .setSmallIcon(R.mipmap.ic_launcher)
-                .setShowWhen(false);
+                .setShowWhen(false);        // TODO alternative for API < 17 ?
         startForeground(NOTIFICATION_ID, notificationBuilder.getNotification());
+
+        IntentFilter intentFilter = new IntentFilter();
+//        intentFilter.addAction("android.intent.action.PROVIDER_CHANGED");
+//        intentFilter.addDataScheme("content");
+//        intentFilter.addDataAuthority("com.android.calendar", null);
+//        calendarReceiver = new CalendarReceiver();
+//        registerReceiver(calendarReceiver, intentFilter);
+
+        intentFilter = new IntentFilter();
+        intentFilter.addAction("android.intent.action.SCREEN_ON");
+        screenOnReceiver = new ScreenOnReceiver();
+        registerReceiver(screenOnReceiver, intentFilter);
+
+        intentFilter = new IntentFilter();
+        intentFilter.addAction("android.intent.action.SCREEN_OFF");
+        screenOffReceiver = new ScreenOffReceiver();
+        registerReceiver(screenOffReceiver, intentFilter);
+
+        handler.post(updateLoop);   // update and keep updating until SCREEN_OFF event
         return START_STICKY;
     }
+
+
 
     @Override
     public void onDestroy() {
         Log.i(TAG, "onDestroy()");
-        handler.removeCallbacks(toasterLoop);
+        handler.removeCallbacks(updateLoop);
+//        unregisterReceiver(calendarReceiver);
+        unregisterReceiver(screenOffReceiver);
+        unregisterReceiver(screenOnReceiver);
         stopForeground(true);
         super.onDestroy();
     }
@@ -61,11 +91,12 @@ public class MyService extends Service {
         throw new UnsupportedOperationException("Not implemented");
     }
 
-    private class ToasterLoop implements Runnable {
+    private class UpdateLoop implements Runnable {
         @Override
         public void run() {
+            Log.i(TAG, "updateLoop");
             updateNotification();
-            handler.postDelayed(this, 10000);
+            handler.postDelayed(this, 20000);
         }
     }
 
@@ -118,5 +149,30 @@ public class MyService extends Service {
                 .getNotification();
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         notificationManager.notify(NOTIFICATION_ID, notification);
+    }
+
+//    private class CalendarReceiver extends BroadcastReceiver {
+//        @Override
+//        public void onReceive(Context context, Intent intent) {
+//            Log.i(TAG, intent.toString());
+//            updateNotification();
+//        }
+//    }
+
+    private class ScreenOnReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.i(TAG, intent.toString());
+            updateNotification();
+            handler.removeCallbacks(updateLoop);
+            handler.post(updateLoop);
+        }
+    }
+    private class ScreenOffReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.i(TAG, intent.toString());
+            handler.removeCallbacks(updateLoop);
+        }
     }
 }
